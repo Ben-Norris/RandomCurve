@@ -19,7 +19,7 @@ bl_info = {
     "version" : (0, 0, 1),
     "location" : "",
     "warning" : "",
-    "category" : "Generic"
+    "category" : "Add Curve"
 }
 
 import bpy
@@ -33,6 +33,7 @@ from random import randint
 #number_of_verts = 25
 #number_of_objects = 50
 twist_rate = 4.0
+xyz = ['X', 'Y', 'Z']
 #make_3d = True
 #exclude_axis = 'Z'
 #axis = 'Z'
@@ -84,14 +85,14 @@ def Extrude():
     bpy.ops.transform.translate(value=(0, 0.00198041, 0))
     bpy.context.active_object.name = 'TaperObject'
 
-    #create input num of objects
+    #create objects
     for t in range(number_of_objects):
         bpy.ops.mesh.primitive_cube_add(enter_editmode=True, location=(0, 0, 0))
         bpy.ops.mesh.select_all(action='SELECT')
         bpy.ops.transform.resize(value=(0,0,0))
         bpy.ops.mesh.remove_doubles()
         
-        #extrude input num of times
+        #extrude objects
         for i in range(number_of_verts):
             if not make_3d:
                 Generate2D(exclude_axis)
@@ -113,20 +114,16 @@ def Extrude():
             
         bpy.ops.object.editmode_toggle()
 
-        #needs clean up
+        #rotate objects
         if not make_3d:
             randRotate = random.uniform(-360, 360)
             bpy.ops.transform.rotate(value=randRotate, orient_axis=axis)
         else:
-            randRotate = random.uniform(-360, 360)
-            transform.rotate(value=randRotate, orient_axis='X')
-            randRotate = random.uniform(-360, 360)
-            
-            bpy.ops.transform.rotate(value=randRotate, orient_axis='Y')
-            randRotate = random.uniform(-360, 360)
-            bpy.ops.transform.rotate(value=randRotate, orient_axis='Z')
+            for i in range(3):
+                randRotate = random.uniform(-360, 360)
+                transform.rotate(value=randRotate, orient_axis=xyz[i])
         
-        #beveling
+        #convert to curve and beveling
         if bevel:
             bpy.ops.object.convert(target='CURVE')
             bevelDepth = random.random()
@@ -137,9 +134,9 @@ def Extrude():
 
 #operator
 class Random_Curve_OT_Operator(bpy.types.Operator):
-    bl_idname = "view3d.crazy_curve"
-    bl_label = "Crazy Curve"
-    bl_description = "Make crazy curves!"
+    bl_idname = "view3d.random_curve"
+    bl_label = "Random Curve"
+    bl_description = "Make random curves!"
 
     def execute(self, context):
         Extrude()
@@ -147,9 +144,9 @@ class Random_Curve_OT_Operator(bpy.types.Operator):
 
 #ui
 class Random_Curve_PT_Panel(bpy.types.Panel):
-    bl_idname = "Crazy_Curve_PT_Panel"
-    bl_label = "Crazy Curve"
-    bl_category = "Crazy Curve"
+    bl_idname = "Random_Curve_PT_Panel"
+    bl_label = "Random Curve"
+    bl_category = "Random Curve"
     bl_space_type = "VIEW_3D"
     bl_region_type = "UI"
 
@@ -166,7 +163,7 @@ class Random_Curve_PT_Panel(bpy.types.Panel):
         col.prop(scene.rcprop, "twist")
 
         col.separator()
-        col.label(text="Generation Axis")
+        col.label(text="Rotation")
         col.prop(scene.rcprop, "is3D")
         col.prop(scene.rcprop, "axis_to_exclude")
 
@@ -176,7 +173,7 @@ class Random_Curve_PT_Panel(bpy.types.Panel):
 
         col.separator()
         col.label(text="Generate")
-        col.operator('view3d.crazy_curve', text="Make Crazy Curves!")
+        col.operator('view3d.random_curve', text="Make Random Curves!")
 
 #blender addon reg, unreg
 def register():
@@ -186,8 +183,8 @@ def register():
     bpy.types.Scene.rcprop = PointerProperty(type=RandomCurveProps)
 
 def unregister():
-    bpy.utils.unregister_class(Crazy_Curve_OT_Operator)
-    bpy.utils.unregister_class(Crazy_Curve_PT_Panel)
+    bpy.utils.unregister_class(Random_Curve_OT_Operator)
+    bpy.utils.unregister_class(Random_Curve_PT_Panel)
     bpy.utils.unregister_class(RandomCurveProps)
     del bpy.types.Scene.rcprop
 

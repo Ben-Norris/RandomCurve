@@ -23,7 +23,7 @@ bl_info = {
 }
 
 import bpy
-from bpy.props import (IntProperty, FloatProperty, BoolProperty, StringProperty, PointerProperty)
+from bpy.props import (IntProperty, FloatProperty, BoolProperty, StringProperty, PointerProperty, EnumProperty)
 from bpy.types import (Panel, Operator, PropertyGroup)
 import random
 from mathutils import Vector
@@ -43,10 +43,11 @@ xyz = ['X', 'Y', 'Z']
 class RandomCurveProps(PropertyGroup):
     vert_num : IntProperty(name = "Number of Verts", description = "Number of verts per curve", default = 10, min = 0, max = 50, soft_max = 50)
     obj_num : IntProperty(name = "Number of Curves", description = "Number of curves to generate", default = 10, min = 1, max = 100, soft_max = 100)
-    twist : FloatProperty(name = "Twist Rate", description = "Twisting of verts", default = 4.0, min = 0, max = 5, precision = 2)
+    twist : FloatProperty(name = "Twist Rate", description = "Twisting of verts", default = .0, min = 0, max = 5, precision = 2)
     is3D : BoolProperty(name = "Make 3D", description = "Should curves be created in all 3 axis", default = True)
-    axis_to_exclude : StringProperty(name = "Exclude Axis", description = "This axis is not used during curve generation", default = 'Y')
-    #_axis : StringProperty(name = "", description = "")
+    axis_to_exclude : EnumProperty(name = "", items = [('X', 'X', "", 1), ('Y', 'Y', "", 2), ('Z', 'Z', "", 3)], default = 'X')
+    rotation_min : FloatProperty(name = "Min", description = "Minimum rotation value", default = 0.0, min = -360, max = 360, precision = 2)
+    rotation_max : FloatProperty(name = "Max", description = "Minimum rotation value", default = 360, min = -360, max = 360, precision = 2)
     enable_bevel : BoolProperty(name = "Bevel Curve", description = "Should curves be beveled", default = True)
     taper_object_name : StringProperty(name = "", description = "The taper object for the curves", default = '')
     bevel_object_name : StringProperty(name = "", description = "The bevel object for the curves", default = '')
@@ -82,6 +83,8 @@ def Extrude():
     number_of_objects = rc_props.obj_num
     twist_rate = rc_props.twist
     make_3d = rc_props.is3D
+    rotation_min_value = rc_props.rotation_min
+    rotation_max_value = rc_props.rotation_max
     exclude_axis = rc_props.axis_to_exclude
     bevel = rc_props.enable_bevel
     bevel_min_value = rc_props.bevel_min
@@ -91,7 +94,6 @@ def Extrude():
 
     #creates a taper object if there is not one or uses taper object with name
     if bevel:
-
         if len(taper_object)>0:
             obj = bpy.data.objects[taper_object].select_set(True)
             _object.editmode_toggle()
@@ -103,9 +105,6 @@ def Extrude():
             transform.translate(value=(0, 0.00198041, 0))
             bpy.context.active_object.name = 'TaperObject'
             taper_object = 'TaperObject'
-
-        
-
 
     #create objects
     for t in range(number_of_objects):
@@ -122,27 +121,25 @@ def Extrude():
                 rand_vector = (random.random(),random.random(),random.random())
                 mesh.extrude_region_move(TRANSFORM_OT_translate={"value":rand_vector})
         
-        #find random axis to rotate on
+        #handle rotation
         if make_3d:
-            value = randint(0, 2)
-            if value == 0:
-                axis = 'X'
-            elif value == 1:
-                axis = 'Y'
-            else:
-                axis = 'Z'
+            for i in range(3):
+                    randRotate = random.uniform(rotation_min_value, rotation_max_value)
+                    transform.rotate(value=randRotate, orient_axis=xyz[i])    
         else:
             axis = exclude_axis
+            randRotate = random.uniform(rotation_min_value, rotation_max_value)
+            transform.rotate(value=randRotate, orient_axis=axis)
             
         _object.editmode_toggle()
 
         #rotate objects
         if not make_3d:
-            randRotate = random.uniform(-360, 360)
+            randRotate = random.uniform(rotation_min_value, rotation_max_value)
             transform.rotate(value=randRotate, orient_axis=axis)
         else:
             for i in range(3):
-                randRotate = random.uniform(-360, 360)
+                randRotate = random.uniform(rotation_min_value, rotation_max_value)
                 transform.rotate(value=randRotate, orient_axis=xyz[i])
         
         #convert to curve and beveling
@@ -186,11 +183,16 @@ class Random_Curve_PT_Panel(bpy.types.Panel):
         col.prop(scene.rcprop, "obj_num")
         col.prop(scene.rcprop, "twist")
 
-
         col.separator()
-        col.label(text="Rotation")
+        col.label(text="Rotation Options")
         col.prop(scene.rcprop, "is3D")
-        col.prop(scene.rcprop, "axis_to_exclude")
+        make_3d = scene.rcprop.is3D
+        if not make_3d:
+            col.label(text="Exclude Axis")
+            col.prop(scene.rcprop, "axis_to_exclude")  
+        col.label(text="Rotation Range")
+        col.prop(scene.rcprop, "rotation_min")
+        col.prop(scene.rcprop, "rotation_max")
 
         col.separator()
         col.label(text="Bevel Options")

@@ -73,6 +73,9 @@ def Generate2D(exclude_axis):
 #main extrusion used in operator
 def Extrude():
     transform = bpy.ops.transform
+    curve = bpy.ops.curve
+    mesh = bpy.ops.mesh
+    _object = bpy.ops.object
     #prop setup
     rc_props = bpy.context.scene.rcprop
     number_of_verts = rc_props.vert_num
@@ -91,13 +94,13 @@ def Extrude():
 
         if len(taper_object)>0:
             obj = bpy.data.objects[taper_object].select_set(True)
-            bpy.ops.object.editmode_toggle()
-            bpy.ops.curve.select_all(action='SELECT')
-            bpy.ops.transform.translate(value=(0, 0.00198041, 0))
+            _object.editmode_toggle()
+            curve.select_all(action='SELECT')
+            transform.translate(value=(0, 0.00198041, 0))
         elif len(taper_object)<1:
-            bpy.ops.curve.primitive_bezier_curve_add(radius=1, enter_editmode=True, location=(0, 0, 0))
-            bpy.ops.curve.select_all(action='SELECT')
-            bpy.ops.transform.translate(value=(0, 0.00198041, 0))
+            curve.primitive_bezier_curve_add(radius=1, enter_editmode=True, location=(0, 0, 0))
+            curve.select_all(action='SELECT')
+            transform.translate(value=(0, 0.00198041, 0))
             bpy.context.active_object.name = 'TaperObject'
             taper_object = 'TaperObject'
 
@@ -106,10 +109,10 @@ def Extrude():
 
     #create objects
     for t in range(number_of_objects):
-        bpy.ops.mesh.primitive_cube_add(enter_editmode=True, location=(0, 0, 0))
-        bpy.ops.mesh.select_all(action='SELECT')
-        bpy.ops.transform.resize(value=(0,0,0))
-        bpy.ops.mesh.remove_doubles()
+        mesh.primitive_cube_add(enter_editmode=True, location=(0, 0, 0))
+        mesh.select_all(action='SELECT')
+        transform.resize(value=(0,0,0))
+        mesh.remove_doubles()
         
         #extrude objects
         for i in range(number_of_verts):
@@ -117,7 +120,7 @@ def Extrude():
                 Generate2D(exclude_axis)
             else: 
                 rand_vector = (random.random(),random.random(),random.random())
-                bpy.ops.mesh.extrude_region_move(TRANSFORM_OT_translate={"value":rand_vector})
+                mesh.extrude_region_move(TRANSFORM_OT_translate={"value":rand_vector})
         
         #find random axis to rotate on
         if make_3d:
@@ -131,12 +134,12 @@ def Extrude():
         else:
             axis = exclude_axis
             
-        bpy.ops.object.editmode_toggle()
+        _object.editmode_toggle()
 
         #rotate objects
         if not make_3d:
             randRotate = random.uniform(-360, 360)
-            bpy.ops.transform.rotate(value=randRotate, orient_axis=axis)
+            transform.rotate(value=randRotate, orient_axis=axis)
         else:
             for i in range(3):
                 randRotate = random.uniform(-360, 360)
@@ -144,14 +147,14 @@ def Extrude():
         
         #convert to curve and beveling
         if bevel:
-            bpy.ops.object.convert(target='CURVE')
+            _object.convert(target='CURVE')
             if len(bevel_object)>0:
                 bpy.context.object.data.bevel_object = bpy.data.objects[bevel_object]
             bevelDepth = random.uniform(bevel_min_value, bevel_max_value)
             bpy.context.object.data.bevel_depth = bevelDepth
             bpy.context.object.data.taper_object = bpy.data.objects[taper_object]
-            bpy.ops.object.subdivision_set(level=2, relative=False)
-            bpy.ops.object.shade_smooth()
+            _object.subdivision_set(level=2, relative=False)
+            _object.shade_smooth()
 
 #operator
 class Random_Curve_OT_Operator(bpy.types.Operator):
@@ -183,6 +186,7 @@ class Random_Curve_PT_Panel(bpy.types.Panel):
         col.prop(scene.rcprop, "obj_num")
         col.prop(scene.rcprop, "twist")
 
+
         col.separator()
         col.label(text="Rotation")
         col.prop(scene.rcprop, "is3D")
@@ -197,8 +201,9 @@ class Random_Curve_PT_Panel(bpy.types.Panel):
             col.prop(scene.rcprop, "taper_object_name")
             col.label(text="Bevel Object Name")
             col.prop(scene.rcprop, "bevel_object_name")
-            row.prop(scene.rcprop, "bevel_min")
-            row.prop(scene.rcprop, "bevel_max")
+            col.label(text="Random Bevel Depth")
+            col.prop(scene.rcprop, "bevel_min")
+            col.prop(scene.rcprop, "bevel_max")
 
         col.separator()
         col.label(text="Generate")

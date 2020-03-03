@@ -29,15 +29,8 @@ import random
 from mathutils import Vector
 from random import randint
 
-#REMOVE
-#number_of_verts = 25
-#number_of_objects = 50
-#twist_rate = 1.0
 xyz = ['X', 'Y', 'Z']
-#make_3d = True
-#exclude_axis = 'Z'
-#axis = 'Z'
-#bevel = True
+collection_created = False
 
 #ui props
 class RandomCurveProps(PropertyGroup):
@@ -52,7 +45,7 @@ class RandomCurveProps(PropertyGroup):
     taper_object_name : StringProperty(name = "", description = "The taper object for the curves", default = '')
     bevel_object_name : StringProperty(name = "", description = "The bevel object for the curves", default = '')
     bevel_min : FloatProperty(name = "Min", description = "Minimum bevel value", default = 0.1, min = 0.1, max = 100, precision = 2)
-    bevel_max : FloatProperty(name = "Max", description = "Maximum bevel value", default = 5.0, min = 0.1, max = 100, precision = 2)
+    bevel_max : FloatProperty(name = "Max", description = "Maximum bevel value", default = 1.0, min = 0.1, max = 100, precision = 2)
 
 #get a random number
 def RandNum():
@@ -68,14 +61,14 @@ def Generate2D(exclude_axis):
     rc_props = bpy.context.scene.rcprop
     twist_rate = rc_props.twist
 
-    if 'X' in exclude_axis:
-        randVector = (0,RandNum(),RandNum())
-    elif 'Y' in exclude_axis:
-        randVector = (RandNum(),0,RandNum())
-    elif 'Z' in exclude_axis:
-        randVector = (RandNum(),RandNum(),0)
-    
-    bpy.ops.mesh.extrude_region_move(TRANSFORM_OT_translate={"value":randVector})
+    vector_list = []
+    for i in range(3):
+        if exclude_axis == xyz[i]:
+            vector_list.append(0)
+        else:
+            vector_list.append(RandNum())
+    rand_vector = (vector_list[0], vector_list[1], vector_list[2])            
+    bpy.ops.mesh.extrude_region_move(TRANSFORM_OT_translate={"value":rand_vector})
 
 #main extrusion used in operator
 def Extrude():
@@ -91,7 +84,6 @@ def Extrude():
     rotation_min_value = rc_props.rotation_min
     rotation_max_value = rc_props.rotation_max
     exclude_axis = rc_props.axis_to_exclude
-    
     bevel = rc_props.enable_bevel
     bevel_min_value = rc_props.bevel_min
     bevel_max_value = rc_props.bevel_max 
@@ -125,29 +117,19 @@ def Extrude():
                 Generate2D(exclude_axis)
             else: 
                 rand_vector = (RandNum(),RandNum(),RandNum())
-                #rand_vector = (random.random(),random.random(),random.random())
                 mesh.extrude_region_move(TRANSFORM_OT_translate={"value":rand_vector})
-        
-        #handle rotation
-        if make_3d:
-            for i in range(3):
-                    randRotate = random.uniform(rotation_min_value, rotation_max_value)
-                    transform.rotate(value=randRotate, orient_axis=xyz[i])    
-        else:
-            axis = exclude_axis
-            randRotate = random.uniform(rotation_min_value, rotation_max_value)
-            transform.rotate(value=randRotate, orient_axis=axis)
             
         _object.editmode_toggle()
 
         #rotate objects
-        if not make_3d:
-            randRotate = random.uniform(rotation_min_value, rotation_max_value)
-            transform.rotate(value=randRotate, orient_axis=axis)
-        else:
+        if make_3d:
             for i in range(3):
                 randRotate = random.uniform(rotation_min_value, rotation_max_value)
                 transform.rotate(value=randRotate, orient_axis=xyz[i])
+        else:
+            axis = exclude_axis
+            randRotate = random.uniform(rotation_min_value, rotation_max_value)
+            transform.rotate(value=randRotate, orient_axis=axis)
         
         #convert to curve and beveling
         if bevel:
@@ -160,6 +142,16 @@ def Extrude():
             bpy.context.object.data.taper_object = bpy.data.objects[taper_object]
             _object.subdivision_set(level=2, relative=False)
             _object.shade_smooth()
+        
+        global collection_created
+        if collection_created == False:
+            bpy.ops.object.move_to_collection(collection_index=0, is_new=True, new_collection_name="GeneratedCurves")
+            collection_created = True
+        else:
+            bpy.data.collections["GeneratedCurves"].objects.link(bpy.context.active_object)
+            bpy.data.collections["Collection"].objects.unlink(bpy.context.active_object)
+            
+        #collection 
 
 #operator
 class Random_Curve_OT_Operator(bpy.types.Operator):

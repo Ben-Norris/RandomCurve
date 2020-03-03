@@ -29,15 +29,9 @@ import random
 from mathutils import Vector
 from random import randint
 
-#REMOVE
-#number_of_verts = 25
-#number_of_objects = 50
-#twist_rate = 1.0
 xyz = ['X', 'Y', 'Z']
-#make_3d = True
-#exclude_axis = 'Z'
-#axis = 'Z'
-#bevel = True
+created_first_col = False
+curr_col_name = ""
 
 #ui props
 class RandomCurveProps(PropertyGroup):
@@ -49,10 +43,12 @@ class RandomCurveProps(PropertyGroup):
     rotation_min : FloatProperty(name = "Min", description = "Minimum rotation value", default = 0.0, min = -360, max = 360, precision = 2)
     rotation_max : FloatProperty(name = "Max", description = "Minimum rotation value", default = 360, min = -360, max = 360, precision = 2)
     enable_bevel : BoolProperty(name = "Bevel Curve", description = "Should curves be beveled", default = True)
+    enable_collections : BoolProperty(name = "Add to Collection", description = "Should curves be added to a collection", default = True)
     taper_object_name : StringProperty(name = "", description = "The taper object for the curves", default = '')
     bevel_object_name : StringProperty(name = "", description = "The bevel object for the curves", default = '')
     bevel_min : FloatProperty(name = "Min", description = "Minimum bevel value", default = 0.1, min = 0.1, max = 100, precision = 2)
-    bevel_max : FloatProperty(name = "Max", description = "Maximum bevel value", default = 5.0, min = 0.1, max = 100, precision = 2)
+    bevel_max : FloatProperty(name = "Max", description = "Maximum bevel value", default = 1.0, min = 0.1, max = 100, precision = 2)
+    collection_name : StringProperty(name = "", description = "Name of the collection generated objects are moved to", default = 'GeneratedCurves')
 
 #get a random number
 def RandNum():
@@ -68,14 +64,14 @@ def Generate2D(exclude_axis):
     rc_props = bpy.context.scene.rcprop
     twist_rate = rc_props.twist
 
-    if 'X' in exclude_axis:
-        randVector = (0,RandNum(),RandNum())
-    elif 'Y' in exclude_axis:
-        randVector = (RandNum(),0,RandNum())
-    elif 'Z' in exclude_axis:
-        randVector = (RandNum(),RandNum(),0)
-    
-    bpy.ops.mesh.extrude_region_move(TRANSFORM_OT_translate={"value":randVector})
+    vector_list = []
+    for i in range(3):
+        if exclude_axis == xyz[i]:
+            vector_list.append(0)
+        else:
+            vector_list.append(RandNum())
+    rand_vector = (vector_list[0], vector_list[1], vector_list[2])            
+    bpy.ops.mesh.extrude_region_move(TRANSFORM_OT_translate={"value":rand_vector})
 
 #main extrusion used in operator
 def Extrude():
@@ -91,12 +87,13 @@ def Extrude():
     rotation_min_value = rc_props.rotation_min
     rotation_max_value = rc_props.rotation_max
     exclude_axis = rc_props.axis_to_exclude
-    
     bevel = rc_props.enable_bevel
     bevel_min_value = rc_props.bevel_min
     bevel_max_value = rc_props.bevel_max 
     taper_object = rc_props.taper_object_name
     bevel_object = rc_props.bevel_object_name
+    enable_collect = rc_props.enable_collections
+    collection = rc_props.collection_name
 
     #creates a taper object if there is not one or uses taper object with name
     if bevel:
@@ -125,29 +122,19 @@ def Extrude():
                 Generate2D(exclude_axis)
             else: 
                 rand_vector = (RandNum(),RandNum(),RandNum())
-                #rand_vector = (random.random(),random.random(),random.random())
                 mesh.extrude_region_move(TRANSFORM_OT_translate={"value":rand_vector})
-        
-        #handle rotation
-        if make_3d:
-            for i in range(3):
-                    randRotate = random.uniform(rotation_min_value, rotation_max_value)
-                    transform.rotate(value=randRotate, orient_axis=xyz[i])    
-        else:
-            axis = exclude_axis
-            randRotate = random.uniform(rotation_min_value, rotation_max_value)
-            transform.rotate(value=randRotate, orient_axis=axis)
             
         _object.editmode_toggle()
 
         #rotate objects
-        if not make_3d:
-            randRotate = random.uniform(rotation_min_value, rotation_max_value)
-            transform.rotate(value=randRotate, orient_axis=axis)
-        else:
+        if make_3d:
             for i in range(3):
                 randRotate = random.uniform(rotation_min_value, rotation_max_value)
                 transform.rotate(value=randRotate, orient_axis=xyz[i])
+        else:
+            axis = exclude_axis
+            randRotate = random.uniform(rotation_min_value, rotation_max_value)
+            transform.rotate(value=randRotate, orient_axis=axis)
         
         #convert to curve and beveling
         if bevel:
@@ -160,6 +147,26 @@ def Extrude():
             bpy.context.object.data.taper_object = bpy.data.objects[taper_object]
             _object.subdivision_set(level=2, relative=False)
             _object.shade_smooth()
+
+        #collections
+        global curr_col_name
+        global created_first_col
+        if enable_collect:
+            if len(collection)>0:
+                if created_first_col == True:
+                    if collection not in curr_col_name:
+                        bpy.ops.object.move_to_collection(collection_index=0, is_new=True, new_collection_name=collection)
+                    else:       
+                        bpy.data.collections[collection].objects.link(bpy.context.active_object)
+                        bpy.data.collections["Collection"].objects.unlink(bpy.context.active_object)
+                    curr_col_name = collection
+                else:
+
+                    bpy.ops.object.move_to_collection(collection_index=0, is_new=True, new_collection_name=collection)
+                    curr_col_name = collection
+                    created_first_col = True
+
+            
 
 #operator
 class Random_Curve_OT_Operator(bpy.types.Operator):
@@ -214,6 +221,14 @@ class Random_Curve_PT_Panel(bpy.types.Panel):
             col.label(text="Random Bevel Depth")
             col.prop(scene.rcprop, "bevel_min")
             col.prop(scene.rcprop, "bevel_max")
+
+        col.separator()
+        col.prop(scene.rcprop, "enable_collections")
+        collect = scene.rcprop.enable_collections
+        if collect == True:
+            col.separator()
+            col.label(text="Collection Name")
+            col.prop(scene.rcprop, "collection_name")
 
         col.separator()
         col.label(text="Generate")

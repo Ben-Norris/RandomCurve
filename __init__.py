@@ -32,7 +32,7 @@ from random import randint
 #REMOVE
 #number_of_verts = 25
 #number_of_objects = 50
-twist_rate = 4.0
+#twist_rate = 1.0
 xyz = ['X', 'Y', 'Z']
 #make_3d = True
 #exclude_axis = 'Z'
@@ -43,7 +43,7 @@ xyz = ['X', 'Y', 'Z']
 class RandomCurveProps(PropertyGroup):
     vert_num : IntProperty(name = "Number of Verts", description = "Number of verts per curve", default = 10, min = 0, max = 50, soft_max = 50)
     obj_num : IntProperty(name = "Number of Curves", description = "Number of curves to generate", default = 10, min = 1, max = 100, soft_max = 100)
-    twist : FloatProperty(name = "Twist Rate", description = "Twisting of verts", default = .0, min = 0, max = 5, precision = 2)
+    twist : FloatProperty(name = "Twist Rate", description = "Twisting of verts", default = 0.0, min = 0, max = 5, precision = 2)
     is3D : BoolProperty(name = "Make 3D", description = "Should curves be created in all 3 axis", default = True)
     axis_to_exclude : EnumProperty(name = "", items = [('X', 'X', "", 1), ('Y', 'Y', "", 2), ('Z', 'Z', "", 3)], default = 'X')
     rotation_min : FloatProperty(name = "Min", description = "Minimum rotation value", default = 0.0, min = -360, max = 360, precision = 2)
@@ -56,11 +56,17 @@ class RandomCurveProps(PropertyGroup):
 
 #get a random number
 def RandNum():
-    return random.uniform(-twist_rate, twist_rate)
+    rc_props = bpy.context.scene.rcprop
+    twist_rate = rc_props.twist
+    if twist_rate == 0:
+        return random.uniform(0, 1)
+    else:
+        return random.uniform(-twist_rate, twist_rate)
 
 #excludes an axis from the extrusion
 def Generate2D(exclude_axis):
-    print('excluding ' + exclude_axis)
+    rc_props = bpy.context.scene.rcprop
+    twist_rate = rc_props.twist
 
     if 'X' in exclude_axis:
         randVector = (0,RandNum(),RandNum())
@@ -81,11 +87,11 @@ def Extrude():
     rc_props = bpy.context.scene.rcprop
     number_of_verts = rc_props.vert_num
     number_of_objects = rc_props.obj_num
-    twist_rate = rc_props.twist
     make_3d = rc_props.is3D
     rotation_min_value = rc_props.rotation_min
     rotation_max_value = rc_props.rotation_max
     exclude_axis = rc_props.axis_to_exclude
+    
     bevel = rc_props.enable_bevel
     bevel_min_value = rc_props.bevel_min
     bevel_max_value = rc_props.bevel_max 
@@ -118,7 +124,8 @@ def Extrude():
             if not make_3d:
                 Generate2D(exclude_axis)
             else: 
-                rand_vector = (random.random(),random.random(),random.random())
+                rand_vector = (RandNum(),RandNum(),RandNum())
+                #rand_vector = (random.random(),random.random(),random.random())
                 mesh.extrude_region_move(TRANSFORM_OT_translate={"value":rand_vector})
         
         #handle rotation
@@ -147,8 +154,9 @@ def Extrude():
             _object.convert(target='CURVE')
             if len(bevel_object)>0:
                 bpy.context.object.data.bevel_object = bpy.data.objects[bevel_object]
-            bevelDepth = random.uniform(bevel_min_value, bevel_max_value)
-            bpy.context.object.data.bevel_depth = bevelDepth
+            bevel_depth = random.uniform(bevel_min_value, bevel_max_value)
+            print('setting bevel depth')
+            bpy.context.object.data.bevel_depth = bevel_depth
             bpy.context.object.data.taper_object = bpy.data.objects[taper_object]
             _object.subdivision_set(level=2, relative=False)
             _object.shade_smooth()

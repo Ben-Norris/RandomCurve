@@ -30,7 +30,8 @@ from mathutils import Vector
 from random import randint
 
 xyz = ['X', 'Y', 'Z']
-collection_created = False
+created_first_col = False
+curr_col_name = ""
 
 #ui props
 class RandomCurveProps(PropertyGroup):
@@ -42,10 +43,12 @@ class RandomCurveProps(PropertyGroup):
     rotation_min : FloatProperty(name = "Min", description = "Minimum rotation value", default = 0.0, min = -360, max = 360, precision = 2)
     rotation_max : FloatProperty(name = "Max", description = "Minimum rotation value", default = 360, min = -360, max = 360, precision = 2)
     enable_bevel : BoolProperty(name = "Bevel Curve", description = "Should curves be beveled", default = True)
+    enable_collections : BoolProperty(name = "Add to Collection", description = "Should curves be added to a collection", default = True)
     taper_object_name : StringProperty(name = "", description = "The taper object for the curves", default = '')
     bevel_object_name : StringProperty(name = "", description = "The bevel object for the curves", default = '')
     bevel_min : FloatProperty(name = "Min", description = "Minimum bevel value", default = 0.1, min = 0.1, max = 100, precision = 2)
     bevel_max : FloatProperty(name = "Max", description = "Maximum bevel value", default = 1.0, min = 0.1, max = 100, precision = 2)
+    collection_name : StringProperty(name = "", description = "Name of the collection generated objects are moved to", default = 'GeneratedCurves')
 
 #get a random number
 def RandNum():
@@ -89,6 +92,8 @@ def Extrude():
     bevel_max_value = rc_props.bevel_max 
     taper_object = rc_props.taper_object_name
     bevel_object = rc_props.bevel_object_name
+    enable_collect = rc_props.enable_collections
+    collection = rc_props.collection_name
 
     #creates a taper object if there is not one or uses taper object with name
     if bevel:
@@ -142,16 +147,26 @@ def Extrude():
             bpy.context.object.data.taper_object = bpy.data.objects[taper_object]
             _object.subdivision_set(level=2, relative=False)
             _object.shade_smooth()
-        
-        global collection_created
-        if collection_created == False:
-            bpy.ops.object.move_to_collection(collection_index=0, is_new=True, new_collection_name="GeneratedCurves")
-            collection_created = True
-        else:
-            bpy.data.collections["GeneratedCurves"].objects.link(bpy.context.active_object)
-            bpy.data.collections["Collection"].objects.unlink(bpy.context.active_object)
+
+        #collections
+        global curr_col_name
+        global created_first_col
+        if enable_collect:
+            if len(collection)>0:
+                if created_first_col == True:
+                    if collection not in curr_col_name:
+                        bpy.ops.object.move_to_collection(collection_index=0, is_new=True, new_collection_name=collection)
+                    else:       
+                        bpy.data.collections[collection].objects.link(bpy.context.active_object)
+                        bpy.data.collections["Collection"].objects.unlink(bpy.context.active_object)
+                    curr_col_name = collection
+                else:
+
+                    bpy.ops.object.move_to_collection(collection_index=0, is_new=True, new_collection_name=collection)
+                    curr_col_name = collection
+                    created_first_col = True
+
             
-        #collection 
 
 #operator
 class Random_Curve_OT_Operator(bpy.types.Operator):
@@ -206,6 +221,14 @@ class Random_Curve_PT_Panel(bpy.types.Panel):
             col.label(text="Random Bevel Depth")
             col.prop(scene.rcprop, "bevel_min")
             col.prop(scene.rcprop, "bevel_max")
+
+        col.separator()
+        col.prop(scene.rcprop, "enable_collections")
+        collect = scene.rcprop.enable_collections
+        if collect == True:
+            col.separator()
+            col.label(text="Collection Name")
+            col.prop(scene.rcprop, "collection_name")
 
         col.separator()
         col.label(text="Generate")

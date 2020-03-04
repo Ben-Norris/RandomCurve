@@ -6,7 +6,8 @@ A Blender addon that creates random curves
 This is a Blender add-on that generates random curves. It was mostly created to learn the add-on creating process but it can still generate some cool results.
 
 <h1>Installation</h1>
-Download the zip. Open Blender. Edit > Preferences > Add-ons. Click the install button at the top and navigate to the zip.</br>
+Download the zip. Open Blender. Edit > Preferences > Add-ons. Click the install button at the top and navigate to the zip.
+Random curve is in the "n" menu (hot key n when in 3D viewport) under the tab Random Curves.</br>
 
 ![screenshot](images/screencap.JPG?raw=true)
 
@@ -32,3 +33,5 @@ Collection Name: A collection will be created with this name and all generated o
 
 <b>Generate:</b></br>
 Make Random Curves: Generates the curves!</br>
+
+version 0.0.1
